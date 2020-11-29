@@ -1,0 +1,168 @@
+---
+title: "R Notebook"
+output: html_notebook
+editor_options: 
+  chunk_output_type: console
+---
+
+question 2 part a
+
+```{r}
+
+library(car)
+library(readxl)
+data <- read_excel("/Users/taha/Downloads/MATH3330_a3data.xlsx", sheet = "q1q2")
+
+fit <- lm(y~.,data=data)
+vif(fit)
+
+
+
+X <- data %>%
+      select(-y)
+
+X = as.matrix(X)
+
+Hat = X %*% solve(X %*% t(X)) %*% t(X)
+
+
+```
+
+Question3 (part b)
+
+```{r}
+
+d = data.frame(L,M)
+colnames(d) <- c("L","M")
+
+fit.lm = lm(L~M,d)
+
+fit.lm
+
+anova(fit.lm)
+
+fit.stdres = rstandard(fit.lm)
+
+
+# drawing the qqplot
+plot.new()
+qqnorm(fit.stdres, ylab="Standardized Residuals", xlab="Normal Scores",  main="qqplot of residuals") 
+qqline(fit.stdres)
+plot(d$M,fit.stdres,ylab="Residuals", xlab="Murder Rate", main="Question3 part g" )
+abline(0, 0) 
+
+
+# time plot 
+plot.new()
+yhat = predict(fit.lm,d)
+plot(seq(1,50),t(L-yhat))
+plot(seq(1,50),fit.stdres)
+abline(0, 0)
+
+
+# CI for mean response
+X = cbind(a=1,M)
+x = data.frame(c(1,5.1))
+t(x) %*% solve(t(X) %*% as.matrix(X))%*% x*0.896
+
+```
+
+
+
+Question 5
+
+```{r}
+MATH3330_a2data <- read_excel("/Users/taha/Downloads/MATH3330_a2data.xlsx", sheet = "Question 5")
+MATH3330_a2data
+data = MATH3330_a2data
+fit.lm = lm(Price~ Size+Bedrooms+Age, data)
+fit.stdres = rstandard(fit.lm)
+
+fit.lm
+
+anova(fit.lm)
+
+
+# part c prediction interval 
+
+x = data.frame(c(1,1000,3,10))
+x = as.matrix(x)
+
+X = cbind(a=1, data["Size"], data["Bedrooms"], data["Age"])
+X = as.matrix(X)
+
+MSE  = 181.3
+
+PIstd = (MSE + t(x) %*% solve(t(X) %*% X)%*% x * MSE)^0.05
+
+beta = as.matrix(c(34.26,0.054,-12.51,-0.1479))
+
+# prediction interval 
+t(x)%*%beta - qt(0.005,26,lower.tail = F)* PIstd
+
+
+
+# part d, checking assumptions
+# drawing the qqplot
+plot.new()
+qqnorm(fit.stdres, ylab="Standardized Residuals", xlab="Normal Scores",  main="qqplot of residuals") 
+qqline(fit.stdres)
+
+plot(seq(1,30),fit.stdres)
+abline(0, 0)
+
+plot(fit.lm)
+
+
+
+plot(data$Size,fit.stdres,ylab="Residuals", xlab="Size", main="Question5 part d" )
+abline(0, 0) 
+
+plot(data$Bedrooms,fit.stdres,ylab="Residuals", xlab="Bedrooms", main="Question5 part d" )
+abline(0, 0) 
+
+plot(data$Age,fit.stdres,ylab="Residuals", xlab="Age", main="Question5 part d" )
+abline(0, 0) 
+
+plot(data$Price,fit.stdres,ylab="Residuals", xlab="Price", main="Question5 part d" )
+abline(0, 0) 
+
+
+# part f, reduced model
+
+fitReduced =  lm(Price~ Age, data)
+
+
+anova(fit.lm)
+anova(fitReduced)
+
+
+```
+
+
+
+
+
+
+```{r}
+
+
+
+
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

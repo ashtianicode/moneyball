@@ -1,0 +1,219 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(scales)
+library(olsrr)
+library(magrittr)
+library(dplyr) 
+library(mlbench)
+library(tidyverse)
+library(caret)
+library(corrplot)
+
+
+
+```
+
+
+
+##loading and cleaning
+```{r}
+baseball = read.csv("/Users/taha/Downloads/baseball.csv")
+colSums(is.na(baseball))
+baseball <-  na.omit(baseball)
+
+```
+
+
+
+
+##looking into p values and correlations
+```{r}
+
+# picking lowest p vlaues
+fit_for_pvalues = lm(W~.,baseball)
+anova(fit_for_pvalues)
+
+
+# lowest p values =>  RankSeason, OOBP, RA, RS, Year, SLG
+
+# high correlations
+# numeric_vars <- baseball %>%
+#                   select(-Team,-League)
+# 
+# correlation_matrix <- cor(numeric_vars)
+# correlation_matrix
+# highlyCorrelated <- findCorrelation(correlation_matrix,cutoff=0.7)
+# colnames(numeric_vars[highlyCorrelated])
+# # [1] "RS"  "SLG" "OBP"
+# corrplot(correlation_matrix, method="circle")
+
+
+
+```
+
+
+
+
+
+##complete-reduced partial F test
+```{r}
+data <- subset(baseball,select = -c(Team,RankPlayoffs,RankSeason))
+
+# reduced model
+model_r <- lm(W~ OOBP+ RA+ RS+ Year, data=data )
+summary(model_r)
+anova(model_r)
+
+
+# complete model
+model_c <- lm(W~., data=data )
+summary(model_c)
+anova(model_c)
+
+
+dfE_complete = 101
+dfE_reduced = 107
+df_drop = dfE_reduced - dfE_complete
+SSEreduced = 634.79
+SSEcomplete = 595.16
+
+
+MSEcomplete = SSEcomplete / dfE_complete        #5.892673
+MSdrop = (SSEreduced - SSEcomplete) /df_drop    # 6.605
+
+F_ts = MSdrop / MSEcomplete                     #1.120883
+
+p_value = pf(F_ts,df_drop,dfE_complete,lower.tail=F) #0.355599 ????
+
+
+
+```
+
+
+
+##plots for checking assumptions
+```{r, echo=FALSE,results='hide',fig.keep='all'}
+
+
+fit.lm <- model_r
+fit.stdres = rstandard(fit.lm)
+
+
+plot.new()
+qqnorm(fit.stdres, ylab="Standardized Residuals", xlab="Normal Scores",  main="qqplot of residuals") 
+qqline(fit.stdres)
+
+plot(seq(1,nrow(data)),fit.stdres,main="Time plot")
+abline(0, 0)
+
+plot(fit.lm)
+
+# reduced model variables RankPlayoffs+ RankSeason+ OOBP+ RA+ RS+ Year
+
+plot(data$OOBP,fit.stdres,ylab="Residuals", xlab="OOBP" )
+abline(0, 0) 
+
+plot(data$RA,fit.stdres,ylab="Residuals", xlab="RA")
+abline(0, 0)
+
+
+plot(data$RS,fit.stdres,ylab="Residuals", xlab="RS")
+abline(0, 0)
+
+plot(data$Year,fit.stdres,ylab="Residuals", xlab="Year")
+abline(0, 0)
+
+
+```
+
+
+
+##VIF and multicollinearity
+```{r}
+library(car)
+vif(fit.lm)
+
+```
+
+
+
+
+
+##Confidence Interval for mean response (mean of Wins)
+### for n=1 of data
+RankPlayoffs   RankSeason         OOBP           RA           RS         Year 
+       5.000        4.000        0.306      600.000      700.000     2012.000 
+
+```{r}
+X <- subset(data , select = c(OOBP,RA,RS,Year))
+X = as.matrix(X)
+
+x <- as.matrix(X[1,])
+
+MSEreduced = SSEreduced / dfE_reduced
+
+yhat = predict(fit.lm, data=data)
+
+var_hat_Win_hat = t(x) %*% solve(t(X) %*% X) %*% x * MSEreduced
+
+beta <- summary(fit.lm)$coefficients[,1]
+
+x <-rbind(c(1),x)
+
+alpha = 0.05
+
+# CI Upper
+CI_Upper <- t(x)%*%beta + qt(alpha/2,dfE_reduced,lower.tail=F) * sqrt(var_hat_Win_hat)
+
+# CI Lower
+CI_Lower <- t(x)%*%beta - qt(alpha/2,dfE_reduced,lower.tail=F) * sqrt(var_hat_Win_hat)
+
+
+print(c(CI_Lower,CI_Upper)) # 92.66599 94.45739
+
+```
+
+##Prediction Interval for mean response (mean of Wins)
+### using a new datapoint from 2020 MLB live data
+  OOBP           RA           RS         Year 
+  0.306      600.000      700.000        2020
+
+```{r}
+X <- subset(data , select = c(OOBP,RA,RS,Year))
+X = as.matrix(X)
+
+x <- c(0.306, 600.000, 700.000, 2020 )
+
+MSEreduced = SSEreduced / dfE_reduced
+
+yhat = predict(fit.lm, data=data)
+
+var_hat_Win_hat = t(x) %*% solve(t(X) %*% X) %*% x * MSEreduced
+
+beta <- summary(fit.lm)$coefficients[,1]
+
+x <-rbind(c(1),x)
+
+alpha = 0.05
+
+# PI Upper
+PI_Upper <- t(x)%*%beta + qt(alpha/2,dfE_reduced,lower.tail=F) * sqrt(var_hat_Win_hat)
+
+# PI Lower
+PI_Lower <- t(x)%*%beta - qt(alpha/2,dfE_reduced,lower.tail=F) * sqrt(var_hat_Win_hat)
+
+
+print(c(CI_Lower,CI_Upper)) # 92.66599 94.45739
+
+```
+
+
+
+
+
+
+

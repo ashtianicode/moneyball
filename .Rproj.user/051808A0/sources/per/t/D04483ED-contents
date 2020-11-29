@@ -1,0 +1,130 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(scales)
+library(olsrr)
+library(magrittr)
+library(dplyr) 
+theme_set(theme_light())
+
+library(mlbench)
+library(caret)
+
+library(corrplot)
+
+
+
+```
+
+
+
+loading the data
+```{r}
+baseball = read.csv("/Users/taha/Downloads/baseball.csv")
+
+baseball
+
+
+wins <- baseball$W
+
+X <- baseball %>%
+  select(-W)
+
+
+colSums(is.na(X))
+
+clean <-  na.omit(X)
+clean
+
+write.csv(x=clean, file="clean_baseball.csv")
+
+
+# lowest p values =>  RankSeason, OOBP, RA, RS, Year, SLG
+
+```
+
+
+
+## variable selection and cleaning
+
+first we fit the model and find pick the variables with lowest p values 
+then we calculate a correlation matrix, and remove some of the highly correlated variables in order to avoid multicollinearity problem. 
+
+"RankPlayoffs, RankSeason, OOBP, RA, RS, Year, SLG" are all significant variables. 
+but since "RS"  "SLG" "OBP" are all highly correlated, we drop SLG as well. 
+
+
+we end up with these variables for our model:
+"RankPlayoffs, RankSeason, OOBP, RA, RS, Year"
+
+
+```{r}
+
+# picking lowest p vlaues
+fit = lm(W~.,baseball)
+anova(fit)
+# lowest p values =>  RankSeason, OOBP, RA, RS, Year, SLG
+
+
+
+# high correlations
+numeric_vars <- baseball %>%
+                  select(-Team,-League)
+
+correlation_matrix <- cor(numeric_vars)
+correlation_matrix
+highlyCorrelated <- findCorrelation(correlation_matrix,cutoff=0.7)
+colnames(numeric_vars[highlyCorrelated])
+# [1] "RS"  "SLG" "OBP"
+
+
+corrplot(correlation_matrix, method="circle")
+
+
+
+```
+
+
+fitting the model
+```{r}
+
+
+data <- baseball %>%
+          select(-Team)
+
+
+
+# reduced model
+model_r <- lm(W~RankPlayoffs+ RankSeason+ OOBP+ RA+ RS+ Year, data=data )
+summary(model_r)
+anova(model_r)
+
+
+# complete model
+model_c <- lm(W~., data=data )
+summary(model_c)
+wanova(model_c)
+
+
+df_complete = 12
+df_drop = 12 - 6 
+SSEreduced = 634.79
+SSEcomplete = 595.16
+
+
+MSEcomplete = SSEcomplete / df_complete
+MSdrop = (SSEreduced - SSEcomplete) /df_drop
+
+F_ts = MSdrop / MSEcomplete
+
+p_value = pf(F_ts,6,101,lower.tail=F)
+
+# p_value: 0.9917604 
+
+```
+
+
+
